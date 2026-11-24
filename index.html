@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101418">
+  <meta name="description" content="Registro pessoal de cargas de musculação.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <title>Gym Tracker</title>
+  <style>
+    :root{color-scheme:dark;--bg:#0d1115;--panel:#171e24;--panel2:#202a32;--line:#2b3943;--text:#f3f6f7;--muted:#9eabb4;--accent:#27c58b;--accent2:#139d70;--danger:#ff7777}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:16px system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+    button,input,select{font:inherit} .wrap{max-width:760px;margin:auto;padding:16px 14px 36px}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 2px 18px}
+    .brand{font-weight:850;letter-spacing:.08em}.brand span{color:var(--accent)} .sync{font-size:12px;color:var(--muted);text-align:right}
+    h1{font-size:27px;margin:6px 0 4px} .sub{color:var(--muted);font-size:13px;margin:0 0 18px}
+    .days{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-bottom:16px}
+    .day{border:1px solid var(--line);background:var(--panel);color:var(--muted);border-radius:12px;padding:11px 2px;font-weight:750;font-size:12px}
+    .day.active{background:var(--accent);color:#07150f;border-color:var(--accent)}
+    .day small{display:block;font-size:10px;font-weight:600;margin-top:3px}
+    .summary{background:linear-gradient(135deg,#17251f,#172027);border:1px solid #294238;border-radius:16px;padding:14px;margin-bottom:14px}
+    .summary strong{font-size:15px}.summary p{margin:5px 0 0;color:var(--muted);font-size:12px}
+    .exercise{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:14px;margin:10px 0}
+    .exhead{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+    .exname{font-size:16px;font-weight:750}.prescribed{font-size:12px;color:var(--muted);margin-top:4px}
+    .last{font-size:11px;color:var(--accent);text-align:right;white-space:nowrap}
+    .entry{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-top:13px;align-items:end}
+    label{display:block;font-size:11px;color:var(--muted);margin:0 0 5px}
+    input{width:100%;min-width:0;background:#0d1318;border:1px solid var(--line);border-radius:10px;color:var(--text);padding:12px 10px;font-size:18px}
+    input:focus{outline:2px solid var(--accent);border-color:transparent}
+    .save{border:0;border-radius:10px;background:var(--accent);color:#06150e;font-weight:850;padding:13px 15px;min-height:48px}
+    .save:active,.day:active{transform:scale(.98)}
+    .historybtn,.secondary{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:10px;padding:11px 13px}
+    .toolbar{display:flex;gap:8px;margin:16px 0;flex-wrap:wrap}
+    .history{display:none;margin-top:18px}.history.open{display:block}
+    .record{border-bottom:1px solid var(--line);padding:10px 0;font-size:13px;display:flex;justify-content:space-between;gap:12px}
+    .record small{color:var(--muted);display:block;margin-top:3px}
+    .note{color:var(--muted);font-size:12px;line-height:1.5;margin-top:18px}
+    .toast{position:fixed;left:14px;right:14px;bottom:calc(16px + env(safe-area-inset-bottom));max-width:720px;margin:auto;background:#e7fff4;color:#062417;border-radius:12px;padding:12px 15px;font-weight:700;font-size:13px;display:none;box-shadow:0 8px 30px #0008}
+    .toast.show{display:block}.empty{color:var(--muted);font-size:13px;padding:12px 0}
+    @media(min-width:600px){.wrap{padding-top:24px}.days{gap:10px}.day{font-size:14px}.exercise{padding:17px}.entry{grid-template-columns:1fr 1fr 110px}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header><div class="brand">GYM<span>TRACKER</span></div><div class="sync" id="syncState">Salvamento local ativo<br>Sincronização não configurada</div></header>
+  <h1>Meu treino</h1><p class="sub">Registre suas cargas e acompanhe sua evolução.</p>
+  <nav class="days" id="days" aria-label="Seleção de treino"></nav>
+  <section class="summary"><strong id="workoutTitle">UPPER A</strong><p id="workoutDesc">Peito, ombros e tríceps · Segunda-feira</p></section>
+  <main id="exercises"></main>
+  <div class="toolbar">
+    <button class="historybtn" id="historyToggle">Ver histórico</button>
+    <button class="secondary" id="exportBtn">Exportar CSV</button>
+  </div>
+  <section class="history" id="history"><h2 style="font-size:18px">Histórico recente</h2><div id="records"></div></section>
+  <p class="note">Os registros são guardados neste aparelho imediatamente. Configure a integração com Google Drive para sincronizar o histórico em CSV. Não limpe os dados do navegador antes de configurar e testar a sincronização.</p>
+</div>
+<div class="toast" id="toast" role="status"></div>
+<script>
+const WORKOUTS = [
+ {id:"upper_a",day:"SEG",title:"UPPER A",desc:"Peito, ombros e tríceps · Segunda-feira",items:[["Chest Press","3 × 10–12"],["Supino inclinado com halteres","2 × 10–12"],["Peck Deck","2 × 12–15"],["Desenvolvimento na máquina","2 × 10–12"],["Elevação lateral sentada","2 × 12–15"],["Tríceps corda","2 × 12"]]},
+ {id:"upper_b",day:"TER",title:"UPPER B",desc:"Costas e bíceps · Terça-feira",items:[["Puxada frontal","3 × 10–12"],["Remada articulada com apoio","3 × 10–12"],["Remada baixa sentada","2 × 12"],["Crucifixo inverso","2 × 12–15"],["Rosca Scott na máquina","2 × 12"],["Rosca alternada sentada","2 × 12"]]},
+ {id:"lower_a",day:"QUA",title:"LOWER A",desc:"Quadríceps e glúteos · Quarta-feira",items:[["Hack machine","3 × 10–12"],["Leg press","3 × 12"],["Cadeira extensora","3 × 12–15"],["Elevação pélvica","3 × 10–12"],["Cadeira abdutora","2 × 15"],["Cadeira adutora","2 × 15"]]},
+ {id:"upper_c",day:"QUI",title:"UPPER C",desc:"Superiores completos · Quinta-feira",items:[["Chest Press","2 × 12"],["Puxada neutra","3 × 10–12"],["Remada na máquina","2 × 12"],["Elevação lateral","2 × 15"],["Rosca Scott","2 × 12"],["Tríceps corda","2 × 12"]]},
+ {id:"lower_b",day:"SEX",title:"LOWER B",desc:"Posterior de coxa e panturrilhas · Sexta-feira",items:[["Mesa flexora","3 × 10–12"],["Stiff com halteres","3 × 10–12"],["Cadeira flexora","3 × 12"],["Avanço com halteres","2 × 12"],["Panturrilha em pé","3 × 15"],["Panturrilha sentada","2 × 15"]]}
+];
+const STORE="gymtracker_records_v1", CONFIG="gymtracker_endpoint_v1", QUEUE="gymtracker_pending_v1";
+let selected=0, records=JSON.parse(localStorage.getItem(STORE)||"[]");
+const $=id=>document.getElementById(id);
+const today=()=>new Date().toLocaleDateString("sv-SE");
+const fmt=d=>new Date(d+"T12:00:00").toLocaleDateString("pt-BR");
+function latest(exercise,workoutId){return records.filter(r=>r.exercise===exercise&&r.workoutId===workoutId).sort((a,b)=>b.timestamp.localeCompare(a.timestamp))[0]}
+function toast(msg){$("toast").textContent=msg;$("toast").classList.add("show");setTimeout(()=>$("toast").classList.remove("show"),2600)}
+function render(){
+ $("days").innerHTML=WORKOUTS.map((w,i)=>`<button class="day ${i===selected?"active":""}" data-i="${i}">${w.day}<small>${w.title}</small></button>`).join("");
+ $("workoutTitle").textContent=WORKOUTS[selected].title;$("workoutDesc").textContent=WORKOUTS[selected].desc;
+ $("exercises").innerHTML=WORKOUTS[selected].items.map(([name,reps,i])=>{const prev=latest(name,WORKOUTS[selected].id);return `<article class="exercise"><div class="exhead"><div><div class="exname">${name}</div><div class="prescribed">${reps} séries × repetições</div></div><div class="last">${prev?`Última: ${prev.weight} kg`:"Sem registro"}</div></div><div class="entry"><div><label for="w-${i}">Carga (kg)</label><input id="w-${i}" inputmode="decimal" type="number" min="0" step="0.1" placeholder="${prev?prev.weight:"0"}"></div><div><label for="r-${i}">Repetições realizadas</label><input id="r-${i}" inputmode="numeric" type="number" min="1" step="1" placeholder="Ex.: 12"></div><button class="save" data-save="${i}">Salvar</button></div></article>`}).join("");
+ $("days").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{selected=Number(b.dataset.i);render()}));
+ $("exercises").querySelectorAll("[data-save]").forEach(b=>b.addEventListener("click",()=>save(Number(b.dataset.save))));
+ renderHistory();
+}
+function save(i){
+ const w=WORKOUTS[selected], [exercise,prescription]=w.items[i], weight=Number($("w-"+i).value.replace(",", ".")), reps=$("r-"+i).value;
+ if(!weight||weight<0){toast("Informe uma carga válida.");return}
+ const row={id:crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random(),date:today(),timestamp:new Date().toISOString(),workoutId:w.id,workout:w.title,exercise,prescription,weight,reps:reps||"",unit:"kg"};
+ records.push(row);localStorage.setItem(STORE,JSON.stringify(records));$("w-"+i).value="";$("r-"+i).value="";render();toast("Carga salva neste aparelho.");syncRecord(row);
+}
+function renderHistory(){
+ const recent=[...records].sort((a,b)=>b.timestamp.localeCompare(a.timestamp)).slice(0,30);
+ $("records").innerHTML=recent.length?recent.map(r=>`<div class="record"><div><strong>${r.exercise}</strong><small>${r.workout} · ${fmt(r.date)}${r.reps?" · "+r.reps+" reps":""}</small></div><strong>${r.weight} kg</strong></div>`).join(""):'<div class="empty">Nenhum registro ainda.</div>';
+}
+function csv(){
+ const cols=["id","date","timestamp","workoutId","workout","exercise","prescription","weight","reps","unit"];
+ const esc=v=>'"'+String(v??"").replaceAll('"','""')+'"';
+ return [cols.join(","),...records.map(r=>cols.map(c=>esc(r[c])).join(","))].join("\r\n");
+}
+$("historyToggle").onclick=()=>{$("history").classList.toggle("open");$("historyToggle").textContent=$("history").classList.contains("open")?"Ocultar histórico":"Ver histórico"};
+$("exportBtn").onclick=()=>{const blob=new Blob(["\ufeff"+csv()],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="gym_tracker_historico.csv";a.click();URL.revokeObjectURL(url)};
+function pending(){return JSON.parse(localStorage.getItem(QUEUE)||"[]")}
+function setPending(q){localStorage.setItem(QUEUE,JSON.stringify(q))}
+async function syncRecord(row){
+ const endpoint=localStorage.getItem(CONFIG);
+ if(!endpoint){$("syncState").innerHTML="Salvamento local ativo<br>Drive ainda não configurado";return}
+ const q=pending();if(!q.some(x=>x.id===row.id)){q.push(row);setPending(q)}
+ await syncPending();
+}
+async function syncPending(){
+ const endpoint=localStorage.getItem(CONFIG), q=pending();
+ if(!endpoint){$("syncState").innerHTML="Salvamento local ativo<br>Drive ainda não configurado";return}
+ if(!q.length){$("syncState").innerHTML="Sincronização solicitada<br>Nenhum registro pendente";return}
+ try{
+   for(const row of q){
+     await fetch(endpoint,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(row)});
+     setPending(pending().filter(x=>x.id!==row.id));
+   }
+   $("syncState").innerHTML="Dados enviados ao Drive<br>Confirmação técnica indisponível";
+ }catch(e){
+   $("syncState").innerHTML="Salvo neste aparelho<br>"+pending().length+" pendente(s) para sincronizar";
+ }
+}
+window.addEventListener("online",syncPending);
+const endpoint=new URLSearchParams(location.search).get("endpoint");if(endpoint){localStorage.setItem(CONFIG,endpoint)}
+if("serviceWorker" in navigator && location.protocol.startsWith("http"))navigator.serviceWorker.register("./sw.js").catch(()=>{});
+render();
+</script>
+</body></html>

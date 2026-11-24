@@ -1,0 +1,45 @@
+GYM TRACKER — PACOTE INICIAL
+
+Conteúdo
+- index.html: aplicativo mobile-first.
+- manifest.webmanifest: configuração instalável (PWA).
+- sw.js: cache básico para abrir o app offline.
+- icon.svg: ícone.
+- Code.gs: endpoint Google Apps Script que cria/atualiza um CSV no Google Drive.
+
+IMPORTANTE SOBRE O ESTADO ATUAL
+O app já registra cargas no armazenamento local do navegador e permite exportar CSV.
+A sincronização com Drive só ficará ativa depois de publicar o Code.gs e configurar o endereço do Web App no app.
+O envio via navegador usa POST no modo no-cors; por isso a interface informa que a confirmação do servidor não é legível pelo navegador. O Apps Script deduplica pelo ID do registro.
+
+CONFIGURAÇÃO DO GOOGLE DRIVE
+1. Entre em https://script.google.com/ com a conta Google desejada.
+2. Crie um projeto e substitua o conteúdo de Code.gs pelo arquivo deste pacote.
+3. Salve e clique em Implantar > Nova implantação.
+4. Tipo: Aplicativo da Web.
+5. Executar como: você.
+6. Quem pode acessar: qualquer pessoa (o endpoint não contém autenticação própria; use apenas se estiver confortável com essa exposição). Se sua organização bloquear essa opção, será necessário outro método de integração.
+7. Implante e copie a URL terminada em /exec.
+
+HOSPEDAGEM DO PWA
+O PWA precisa estar em uma origem HTTPS para ser instalável e usar service worker.
+Publique os arquivos index.html, manifest.webmanifest, sw.js e icon.svg em um host HTTPS estático (por exemplo, GitHub Pages ou Netlify).
+Abra a URL no celular.
+
+VINCULAR O ENDPOINT
+Na primeira abertura, acrescente ?endpoint=URL_DO_APPS_SCRIPT à URL do aplicativo (substitua pela URL /exec copiada). O app guarda esse endereço no armazenamento local do navegador.
+Exemplo: https://SEU-SITE/index.html?endpoint=https%3A%2F%2Fscript.google.com%2Fmacros%2Fs%2F...%2Fexec
+Depois, use “Adicionar à tela inicial” no navegador do celular.
+
+USO
+- Escolha o treino no topo.
+- Informe carga e, opcionalmente, repetições realizadas.
+- Toque em Salvar.
+- O registro fica salvo localmente imediatamente.
+- Use Exportar CSV para baixar uma cópia do histórico.
+
+OBSERVAÇÕES
+- A ficha de exercícios está fixa no código conforme o PDF recebido (5 treinos, 6 exercícios por treino).
+- Não há edição de exercícios na interface.
+- Os registros locais ficam no armazenamento do navegador. Evite limpar os dados do site.
+- Esta é uma primeira versão funcional; antes de depender exclusivamente do Drive, faça um teste com um registro e confirme a criação do CSV na sua conta.
