@@ -105,18 +105,35 @@ async function syncRecord(row){
  const q=pending();if(!q.some(x=>x.id===row.id)){q.push(row);setPending(q)}
  await syncPending();
 }
+function jsonpSave(endpoint,row){
+ return new Promise((resolve,reject)=>{
+   const callback="gymTrackerCb_"+Date.now()+"_"+Math.random().toString(36).slice(2);
+   const script=document.createElement("script");
+   const timer=setTimeout(()=>{cleanup();reject(new Error("Tempo esgotado aguardando confirmação do Google Drive."))},20000);
+   function cleanup(){clearTimeout(timer);delete window[callback];script.remove()}
+   window[callback]=(result)=>{cleanup();if(result&&result.ok&&result.saved)resolve(result);else if(result&&result.ok&&result.duplicate)resolve(result);else reject(new Error(result?.error||"O Apps Script não confirmou a gravação."))};
+   script.onerror=()=>{cleanup();reject(new Error("Não foi possível acessar o Apps Script."))};
+   const url=new URL(endpoint);
+   url.searchParams.set("action","save");
+   url.searchParams.set("callback",callback);
+   url.searchParams.set("payload",JSON.stringify(row));
+   script.src=url.toString();
+   document.head.appendChild(script);
+ });
+}
 async function syncPending(){
  const endpoint=localStorage.getItem(CONFIG), q=pending();
  if(!endpoint){$("syncState").innerHTML="Salvamento local ativo<br>Drive ainda não configurado";return}
- if(!q.length){$("syncState").innerHTML="Sincronização solicitada<br>Nenhum registro pendente";return}
+ if(!q.length){$("syncState").innerHTML="Drive sincronizado<br>Nenhum registro pendente";return}
+ $("syncState").innerHTML="Sincronizando com Google Drive...";
  try{
    for(const row of q){
-     await fetch(endpoint,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(row)});
+     await jsonpSave(endpoint,row);
      setPending(pending().filter(x=>x.id!==row.id));
    }
-   $("syncState").innerHTML="Dados enviados ao Drive<br>Confirmação técnica indisponível";
+   $("syncState").innerHTML="Google Drive sincronizado<br>Todos os registros confirmados";
  }catch(e){
-   $("syncState").innerHTML="Salvo neste aparelho<br>"+pending().length+" pendente(s) para sincronizar";
+   $("syncState").innerHTML="Salvo neste aparelho<br>"+pending().length+" pendente(s) · "+e.message;
  }
 }
 window.addEventListener("online",syncPending);
